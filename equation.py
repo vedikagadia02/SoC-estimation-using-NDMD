@@ -13,16 +13,16 @@ def deriv(X, t, lamda, mu):
 
 def solve_equation(tmax, dt_per_period, x1_0, x2_0, lamda, mu):
     dt = 2*np.pi/dt_per_period
-    t = np.arange(0,tmax, dt)
+    t = np.arange(0,5, 0.02)
     X0 = [x1_0, x2_0]
     X = odeint(deriv, X0, t, args = (lamda, mu))
     return t, X
     
 if __name__ == '__main__':
     x1_0, x2_0 = -5, 5
-    tmax = 1
-    lamda, mu = -0.005, -0.5
-    dt_per_period = 1000
+    tmax = 10
+    lamda, mu = 1, -0.05
+    dt_per_period = 100
 
     x1_data = []
     x2_data = []
@@ -37,5 +37,7 @@ if __name__ == '__main__':
             t_data.append(t)
 
     data = np.stack([np.array(x1_data), np.array(x2_data), np.array(t_data)], axis = 2)
-    print(data.shape)
+    print(data.shape[1], data.shape[2])
+    plt.plot(data[150][:,0], data[150][:,1])
+    plt.show()
     np.save('equation.npy', data)
