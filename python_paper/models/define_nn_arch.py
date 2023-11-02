@@ -8,21 +8,21 @@ class KoopmanNetwork(nn.Module):
         super(KoopmanNetwork, self).__init__()
         self.encoder = nn.Sequential(
             nn.Linear(indim, 3),
-            nn.Tanh(),
+            # nn.ELU(inplace=True),
             # nn.Linear(15, 15),
             # nn.ELU(inplace=True),
-            nn.Linear(3, obsdim)
+            # nn.Linear(3, obsdim)
         )
 
         self.decoder = nn.Sequential(
-            # nn.Linear(obsdim, 15),
+            # nn.Linear(obsdim, 3),
             # nn.ELU(inplace=True),
-            nn.Linear(3, 3),
-            nn.Tanh(),
+            # nn.Linear(3, 3),
+            # nn.ELU(inplace=True),
             nn.Linear(3, indim)
         )   
 
-        self.kMatrix = nn.Parameter(torch.rand(obsdim, obsdim))
+        self.kMatrix = nn.Parameter(torch.eye(obsdim, obsdim))
         print('Total number of parameters: {}'.format(self._num_parameters()))
 
     def forward(self, x):

@@ -8,7 +8,8 @@ def deriv(X, t, lamda, mu):
     """returns the derivates dx1/dt and dx2/dt"""
     x1, x2 = X
     x1dot = mu*x1
-    x2dot = lamda*(x2-x1**2)
+    # x2dot = lamda*(x2-x1**2)
+    x2dot = lamda*x2
     return x1dot, x2dot
 
 def solve_equation(tmax, dt_per_period, x1_0, x2_0, lamda, mu):
@@ -21,7 +22,7 @@ def solve_equation(tmax, dt_per_period, x1_0, x2_0, lamda, mu):
 if __name__ == '__main__':
     x1_0, x2_0 = -5, 5
     tmax = 10
-    lamda, mu = 1, -0.05
+    lamda, mu = 1, 0.05
     dt_per_period = 100
 
     x1_data = []
