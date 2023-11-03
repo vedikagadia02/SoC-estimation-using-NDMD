@@ -22,7 +22,7 @@ class KoopmanNetwork(nn.Module):
             nn.Linear(3, indim)
         )   
 
-        self.kMatrix = nn.Parameter(torch.eye(obsdim, obsdim))
+        self.kMatrix = nn.Parameter(torch.rand(obsdim, obsdim))
         print('Total number of parameters: {}'.format(self._num_parameters()))
 
     def forward(self, x):
