@@ -69,16 +69,15 @@ class KoopmanNetwork(nn.Module):
         kMatrix[utIdx[0], utIdx[1]] = self.kMatrixUT
         kMatrix[utIdx[1], utIdx[0]] = -self.kMatrixUT
         kMatrix[diagIdx[0], diagIdx[1]] = torch.nn.functional.relu(self.kMatrixDiag)
-    
-        # gnext = g
-        # for i in range(s):
-        #     gnext = torch.mm(gnext, self.kMatrix)
-        # gnext = torch.mm(g, self.kMatrix) trying new settings
 
-        # return gnext
-    
-        # trying inbuilt torch.bmm instead of iterating over the for loop
         gnext = torch.bmm(g.unsqueeze(1), kMatrix.expand(g.size(0), kMatrix.size(0), kMatrix.size(0)))
+        for i in range(s):
+            if i == 1 :
+                continue
+            else :
+                gnext = torch.bmm(gnext, kMatrix.expand(g.size(0), kMatrix.size(0), kMatrix.size(0)))
+            # print(i, "debug koopman")
+            
         return gnext.squeeze(1)
     
     def getKoopmanMatrix(self, requires_grad = False):

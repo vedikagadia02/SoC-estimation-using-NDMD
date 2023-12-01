@@ -12,6 +12,8 @@ def trainAE(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer)
         encoder_output_t, output_t = model.forward(input_t)
 
         loss_rec = mseLoss(input_t, output_t)
+        model.kMatrixDiag.requires_grad = False
+        model.kMatrixUT.requires_grad = False
         loss_rec.detach()
         loss_rec.backward()
         optimizer.step()
@@ -26,8 +28,8 @@ def trainModel(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimiz
     loss_total = 0
     for idx, (input_data, target_data) in enumerate(training_loader):
         batch_size = input_data.size(0)
-        input_t = input_data.view(batch_size,-1).to(device)
-        encoder_output_t, output_t = model.forward(input_t)
+        input_t = input_data.view(batch_size,-1).to(device) # size [16,2]
+        encoder_output_t, output_t = model.forward(input_t) # size of encoder [16,3] output [16,2]
 
         input_data_tnext = target_data.to(device)
         # encoder_output_t1, output_t1 = model.forward(input_t1)
@@ -59,6 +61,7 @@ def trainModel(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimiz
             loss = a1*loss_rec + a2*loss_lin + a3*loss_pred + a4*l2_norm
 
         loss = a1*loss_rec + a2*loss_lin + a3*loss_pred + a4*l2_norm
+        print(idx, "debug loss", loss)
         loss_total = loss_total + loss.detach()
         loss.backward()
         optimizer.step()
