@@ -49,13 +49,17 @@ def trainModel(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimiz
         l2_norm = sum(p.abs().pow(2.0).sum() for p in model.parameters())
         # loss = mseLoss(input_t, output_t) + mseLoss(input_t1, output_t1) + mseLoss(koopman_t1, encoder_output_t1)
         
-        if epoch <= 5:
-            model.kMatrix.requires_grad = False
-            loss = loss_rec
-        else:
-            model.kMatrix.requires_grad = True
-            loss = a1*loss_rec + a2*loss_lin + a3*loss_pred + a4*l2_norm
+        # if epoch <= 5:
+        #     model.kMatrixDiag.requires_grad = False
+        #     model.kMatrixUT.requires_grad = False
+        #     loss = loss_rec
+        # else:
+        #     model.kMatrixDiag.requires_grad = True
+        #     model.kMatrixUT.requires_grad = True
+        #     loss = a1*loss_rec + a2*loss_lin + a3*loss_pred + a4*l2_norm
 
+        # working with trainAE and trainKNN separately
+        loss = a1*loss_rec + a2*loss_lin + a3*loss_pred + a4*l2_norm
         loss_total = loss_total + loss.detach()
         loss.backward()
         optimizer.step()
