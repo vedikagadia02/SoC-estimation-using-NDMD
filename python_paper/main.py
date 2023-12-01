@@ -74,14 +74,18 @@ if __name__ == '__main__':
     # scheduler = ExponentialLR(optimizer, gamma = 0.995)
 
     for epoch in range(1, 250):  
-        if(epoch <=5):
-            loss_total = trainAE(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer)
-            print('Epoch {:d}: Training Loss {:.05f}'.format(epoch, loss_total))
-        else:    
-            loss_rec, loss_total, koopman = trainModel(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer)
-            print('Epoch {:d}: Training Loss {:.05f}'.format(epoch, loss_total))
-        # scheduler.step()
-        # koopman = model.getKoopmanMatrix()
-            for row in koopman:
-                    formatted_row = [format(element, '.5f') for element in row]
-                    print(' '.join(formatted_row))
+        # if(epoch <=5):
+        #     loss_total = trainAE(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer)
+        #     print('Epoch {:d}: Training Loss {:.05f}'.format(epoch, loss_total))
+        # else:    
+        #     loss_rec, loss_total, koopman = trainModel(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer)
+        #     print('Epoch {:d}: Training Loss {:.05f}'.format(epoch, loss_total))
+
+        
+        # working with trainAE and trainKNN separately
+        loss_rec, loss_total, koopman = trainModel(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer)
+        print('Epoch {:d}: Training Loss {:.05f}'.format(epoch, loss_total))
+        scheduler.step()
+        for row in koopman:
+                formatted_row = [format(element, '.5f') for element in row]
+                print(' '.join(formatted_row))
