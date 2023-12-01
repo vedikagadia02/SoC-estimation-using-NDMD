@@ -4,7 +4,9 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 from torch.optim.lr_scheduler import ExponentialLR
 from models.define_nn_arch import KoopmanNetwork
-from models.nn_working import trainModel
+from models.nn_approach_1 import trainAE
+from models.nn_approach_1 import trainModel
+from models.nn_approach_2 import trainModel_2
 from sklearn.preprocessing import StandardScaler
 
 def loadData(file_name, ntrain, ntest):
@@ -59,8 +61,12 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam([
         {'params': list(model.encoder.parameters()) + list(model.decoder.parameters()), 'lr': encoder_lr},
-        {'params': [model.kMatrix], 'lr': kMatrix_lr}
-    ])
+        {'params': [model.kMatrixDiag, model.kMatrixUT], 'lr': kMatrix_lr}
+    ], 
+    weight_decay=1e-7
+    )
+
+    scheduler = ExponentialLR(optimizer, gamma=0.995)
 
     # parameters = [{'params': [model.kMatrix], 'lr': 1e-2},
     #               {'params': [model.encoder.parameters(), model.decoder.parameters()], 'lr': 1e-3}]
@@ -68,10 +74,14 @@ if __name__ == '__main__':
     # scheduler = ExponentialLR(optimizer, gamma = 0.995)
 
     for epoch in range(1, 250):  
-        loss = trainModel(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer)
-        print('Epoch {:d}: Training Loss {:.05f}'.format(epoch, loss))
+        if(epoch <=5):
+            loss_total = trainAE(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer)
+            print('Epoch {:d}: Training Loss {:.05f}'.format(epoch, loss_total))
+        else:    
+            loss_rec, loss_total, koopman = trainModel(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer)
+            print('Epoch {:d}: Training Loss {:.05f}'.format(epoch, loss_total))
         # scheduler.step()
-        koopman = model.getKoopmanMatrix()
-        for row in koopman:
-            formatted_row = [format(element, '.5f') for element in row]
-            print(' '.join(formatted_row))
+        # koopman = model.getKoopmanMatrix()
+            for row in koopman:
+                    formatted_row = [format(element, '.5f') for element in row]
+                    print(' '.join(formatted_row))
