@@ -61,16 +61,24 @@ if __name__ == '__main__':
     scheduler = None
     ntrain = 1200
     ntest = 400
+    indim = 2
+    obsdim = 4
+
+    # ntrain = 4800
+    # ntest = 1600
     s = 30      # number of steps
     a1, a2, a3, a4 = 1.0, 50.0, 10.0, 1e-6
-    training_loader, testing_loader = loadData('./equation.npy', ntrain, ntest)
+    # training_loader, testing_loader = loadData('./equation.npy', ntrain, ntest)
+
+    # changed dataset
+    training_loader, testing_loader = loadData('./equation_2.npy', ntrain, ntest)
     
     training_loader_shape(training_loader)
 
-    model = KoopmanNetwork(2, 3).to(device)
+    model = KoopmanNetwork(indim, obsdim).to(device)
 
-    encoder_lr = 0.001
-    kMatrix_lr = 0.01
+    encoder_lr = 0.0005
+    kMatrix_lr = 0.001
 
     optimizer = torch.optim.Adam([
         {'params': list(model.encoder.parameters()) + list(model.decoder.parameters()), 'lr': encoder_lr},
