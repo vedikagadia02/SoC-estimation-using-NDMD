@@ -42,7 +42,7 @@ def loadData(file_name, ntrain, ntest):
 
     return training_loader, testing_loader
 
-def training_loader_shape(training_loader):
+def print_training_loader_shape(training_loader):
     num_batches = len(training_loader)
 
     # Shape of a single batch
@@ -58,39 +58,41 @@ if __name__ == '__main__':
         use_cuda = "cuda"
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("Torch device:{}".format(device))
-    scheduler = None
+    
+    '''
+    CHANGE VALUES HERE
+    '''
+    dataset = "./equation_2.npy"
     ntrain = 1200
     ntest = 400
     indim = 2
     obsdim = 4
-
-    # ntrain = 4800
-    # ntest = 1600
-    s = 30      # number of steps
+    s = 30      # number of steps to multiply kMatrix over
     a1, a2, a3, a4 = 1.0, 50.0, 10.0, 1e-6
-    # training_loader, testing_loader = loadData('./equation.npy', ntrain, ntest)
-
-    # changed dataset
-    training_loader, testing_loader = loadData('./equation_2.npy', ntrain, ntest)
-    
-    training_loader_shape(training_loader)
-
-    model = KoopmanNetwork(indim, obsdim).to(device)
-
     encoder_lr = 0.0005
     kMatrix_lr = 0.001
+    weight_decay = 1e-7
+    gamma = 0.995
+    epochs = 250
+    epochs_encoder = 5
+    '''
+    END OF CHANGE VALUES
+    '''
 
+    training_loader, testing_loader = loadData(dataset, ntrain, ntest)
+    print_training_loader_shape(training_loader)
+
+    model = KoopmanNetwork(indim, obsdim).to(device)
     optimizer = torch.optim.Adam([
         {'params': list(model.encoder.parameters()) + list(model.decoder.parameters()), 'lr': encoder_lr},
         {'params': [model.kMatrixDiag, model.kMatrixUT], 'lr': kMatrix_lr}
     ], 
-    weight_decay=1e-7
+    weight_decay=weight_decay
     )
+    scheduler = ExponentialLR(optimizer, gamma=gamma)
 
-    scheduler = ExponentialLR(optimizer, gamma=0.995)
-
-    for epoch in range(1, 250):  
-        if(epoch <=5):
+    for epoch in range(1, epochs):  
+        if(epoch <=epochs_encoder):
             loss_total = trainAE(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer)
             print('Epoch {:d}: Training Loss {:.05f}'.format(epoch, loss_total))
         else:    
