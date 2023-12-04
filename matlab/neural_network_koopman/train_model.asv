@@ -1,10 +1,14 @@
-function loss_total = train_model(training_input_data, training_target_data, s, a1, a2, a3, a4, indim, obsdim)
-    loss_total = 0;
+function [loss_model, koopman] = train_model(training_input_data, training_target_data, s, a1, a2, a3, a4, indim, obsdim)
+    loss_model = 0;
+    lr = 1e-3;
+    
+    model = KoopmanNetwork(indim, obsdim,false)
+    net = dlnetwork([ae.encoder,ae.decoder]);
     for idx = 1:750399
         input_t = training_input_data(idx, :, :);
         target_data = training_target_data(idx, :, :);
         input_data_tnext = target_data;
-        model = KoopmanNetwork(indim, obsdim); 
+         
         encoder_output_t, output_t = model.forward(training_input_data);
         loss_rec = immse(input_t, output_t);
         loss_lin = 0;
@@ -32,7 +36,11 @@ function loss_total = train_model(training_input_data, training_target_data, s, 
             end
         end
         loss = a1*loss_rec + a2*loss_lin + a3*loss_pred + a4*l2_norm;
-        loss_total = loss_total 
-
+        gradients = dlgradient(loss,net.Learnables,RetainData=true);
+        net = adamupdate(net,gradients,lr);
+        %model.performParam.regularization = a4;
+        %model = train(model,x,t);
+        loss_model = loss_model + loss;
+        koopman = model.getKoopmanMatrix();
     end
 end
