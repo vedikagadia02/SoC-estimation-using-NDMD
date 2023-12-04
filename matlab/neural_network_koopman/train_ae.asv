@@ -1,0 +1,7 @@
+function train_ae(training_input_data, training_target_data, indim, obsdim)
+    for idx = 1:size(input_data, 2)
+        ae = KoopmanNetwork(indim, obsdim); 
+        encoder_output_t, output_t = ae.forward(training_input_data);
+        loss_rec = immse(input_t, output_t);
+   
+end

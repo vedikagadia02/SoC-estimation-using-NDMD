@@ -1,0 +1,40 @@
+function [loss_model, koopman] = train_model(training_input_data, training_target_data, s, a1, a2, a3, a4, indim, obsdim)
+    loss_model = 0;
+    for idx = 1:750399
+        input_t = training_input_data(idx, :, :);
+        target_data = training_target_data(idx, :, :);
+        input_data_tnext = target_data;
+        model = KoopmanNetwork(indim, obsdim); 
+        encoder_output_t, output_t = model.forward(training_input_data);
+        loss_rec = immse(input_t, output_t);
+        loss_lin = 0;
+        loss_pred = 0;
+        for x = 1:30
+            input_tnext = input_data_tnext(:,x, :);
+            encoder_output_tnext, output_tnext = model.forward(input_tnext);
+            koopman_tnext = model.koopmanOperation(encoder_output_t, x+1);
+            recover_tnext = model.recover(koopman_tnext);
+            loss_rec = loss_rec + immse(input_tnext,output_tnext);
+            loss_lin = loss_lin + immseLoss(koopman_tnext, encoder_output_tnext);
+            loss_pred = loss_pred + immseLoss(input_tnext, recover_tnext);
+        end
+        loss_rec = loss_rec/s;
+        loss_lin = loss_lin/s;
+        loss_pred = loss_pred/s;
+        l2_norm = 0;
+        for i = 1:numel(model.Layers)
+            layer = model.Layers(i);
+            if isprop(layer, 'Weights')
+                l2_norm = l2_norm + sum(abs(layer.Weights).^2, 'all');
+            end
+            if isprop(layer, 'Bias')
+                l2_norm = l2_norm + sum(abs(layer.Bias).^2, 'all');
+            end
+        end
+        loss = a1*loss_rec + a2*loss_lin + a3*loss_pred + a4*l2_norm;
+        model.performParam.regularization = a4;
+        model = train(model,x,t);
+        loss_model = loss_model + loss;
+        koopman = model.getKoopmanMatrix();
+    end
+end
