@@ -1,14 +1,24 @@
 function loss_ae = train_ae(training_input_data, indim, obsdim)
     loss_ae = 0;
     lr=1e-3;
+    disp("ran 1 ")
     ae = KoopmanNetwork(indim, obsdim,true);
-    net = dlnetwork(ae);
-    for idx = 1:750399
+    disp("ran 2 ")
+    netE = dlnetwork(ae.encoder_layer());
+    disp("ran 3 ")
+    netD = dlnetwork(ae.decoder_layer());
+    for idx = 1:7
+        disp("ran 4")
         input_t = training_input_data(idx, :, :);
-        encoder_output_t, output_t = ae.forward(training_input_data);
+        disp(size(input_t))
+        input_t = squeeze(input_t);
+
+        [encoder_output_t, output_t] = ae.forward(input_t);
         loss_rec = immse(input_t, output_t);
-        gradients = dlgradient(loss_rec,network.Learnables,RetainData=true);
-        net = adamupdate(net,gradients,lr);
+        [gradientsE, gradientsD] = dlgradient(loss_rec,netE.Learnables,netD.Learnables);
+        netE = adamupdate(netE,gradientsE,lr);
+        netD = adamupdate(netD,gradientsD,lr);
+        
         loss_ae = loss_ae + loss_rec;
         
     end

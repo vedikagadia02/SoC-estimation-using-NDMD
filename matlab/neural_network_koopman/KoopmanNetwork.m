@@ -2,7 +2,6 @@ classdef KoopmanNetwork < handle
     properties
         encoder
         decoder
-        autoencoder
         obsdim
         kMatrixDiag
         kMatrixUT
@@ -15,33 +14,31 @@ classdef KoopmanNetwork < handle
             obj.freezeKoopman = freezeKoopman;
 
             obj.encoder = [
-                fullyConnectedLayer(100)
+                inputLayer([2 1 1],"STC")
+                fullyConnectedLayer(30)
                 reluLayer
-                fullyConnectedLayer(100)
+                fullyConnectedLayer(30)
                 reluLayer
-                fullyConnectedLayer(100)
-                reluLayer
-                fullyConnectedLayer(obsdim)
+                fullyConnectedLayer(3)
             ];
 
             obj.decoder = [
-                fullyConnectedLayer(100)
+                inputLayer([3 1 1],"STC")
+                fullyConnectedLayer(30)
                 reluLayer
-                fullyConnectedLayer(100)
+                fullyConnectedLayer(30)
                 reluLayer
-                fullyConnectedLayer(100)
-                reluLayer
-                fullyConnectedLayer(indim)
+                fullyConnectedLayer(2)
             ];
             
 
-            %obj.kMatrixDiag = rand(1, obsdim);
-            %obj.kMatrixUT = 0.01 * randn(1, int32(obsdim*(obsdim-1)/2));
+            obj.kMatrixDiag = rand(1, obsdim);
+            obj.kMatrixUT = 0.01 * randn(1, int32(obsdim*(obsdim-1)/2));
             
             obj.initializeWeights(obj.encoder);
             obj.initializeWeights(obj.decoder);
             %obj.initializeWeights(obj.autoencoder);
-            obj.autoencoder = [obj.encoder,obj.decoder];
+            %obj.autoencoder = [obj.encoder,obj.decoder];
             if obj.freezeKoopman
                 obj.freezeParameters();
             end
@@ -49,9 +46,9 @@ classdef KoopmanNetwork < handle
         end
         function freezeParameters(obj)
             % Method to freeze parameters 
-            %obj.kMatrixDiag = obj.freezeParameter(obj.kMatrixDiag);
-            %obj.kMatrixUT = obj.freezeParameter(obj.kMatrixUT);
-            obj.autoencoder.layers(4) = obj.freezeParameter(obj.autoencoder.layers(4));
+            obj.kMatrixDiag = obj.freezeParameter(obj.kMatrixDiag);
+            obj.kMatrixUT = obj.freezeParameter(obj.kMatrixUT);
+            %obj.autoencoder.layers(4) = obj.freezeParameter(obj.autoencoder.layers(4));
         end
         
         function param = freezeParameter(obj, param)
@@ -80,8 +77,8 @@ classdef KoopmanNetwork < handle
         end
 
         function [g, x0] = forward(obj, x)
-            g = predict(obj.autoencoder.layers(1), x);
-            x0 = predict(obj.autoencoder.layers(2), g);
+            g = predict(obj.encoder, x);
+            x0 = predict(obj.decoder, g);
         end
 
         function x0 = recover(obj, g)
@@ -126,5 +123,13 @@ classdef KoopmanNetwork < handle
                 end
             end
         end
+        function encoder = encoder_layer(obj)
+            encoder = obj.encoder;
+        end
+
+        function decoder = decoder_layer(obj)
+            decoder = obj.decoder;
+        end
+
     end
 end
