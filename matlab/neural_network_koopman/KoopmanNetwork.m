@@ -14,7 +14,7 @@ classdef KoopmanNetwork < handle
             obj.freezeKoopman = freezeKoopman;
 
             obj.encoder = [
-                inputLayer([2 1 1],"STC")
+                featureInputLayer(2)
                 fullyConnectedLayer(30)
                 reluLayer
                 fullyConnectedLayer(30)
@@ -23,7 +23,7 @@ classdef KoopmanNetwork < handle
             ];
 
             obj.decoder = [
-                inputLayer([3 1 1],"STC")
+                featureInputLayer(3)
                 fullyConnectedLayer(30)
                 reluLayer
                 fullyConnectedLayer(30)
