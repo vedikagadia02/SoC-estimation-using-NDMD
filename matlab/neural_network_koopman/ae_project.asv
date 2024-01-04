@@ -1,0 +1,61 @@
+numLatentChannels = 32;
+inputSize = [1 2 NaN];
+projectionSize = [1 3 NaN];
+inputFormat = "TCB";
+indim = 2;
+obsdim = 3;
+
+layersE = [
+    inputLayer(inputSize,inputFormat)
+    fullyConnectedLayer(100)
+    reluLayer
+    fullyConnectedLayer(100)
+    reluLayer
+    fullyConnectedLayer(100)
+    reluLayer
+    fullyConnectedLayer(obsdim)
+    ];
+
+layersD = [
+    inputLayer(projectionSize,inputFormat)
+    fullyConnectedLayer(100)
+    reluLayer
+    fullyConnectedLayer(100)
+    reluLayer
+    fullyConnectedLayer(100)
+    reluLayer
+    fullyConnectedLayer(indim)
+    ];
+
+netE = dlnetwork(layersE);
+netD = dlnetwork(layersD);
+
+numEpochs = 150;
+miniBatchSize = 128;
+learnRate = 1e-3;
+
+[training_input_data, training_target_data] = dataLoader();
+
+dsTrain = arrayDatastore(training_input_data,IterationDimension=1);
+numOutputs = 1;
+disp("DS train")
+disp(size(dsTrain))
+mbq = minibatchqueue(dsTrain,numOutputs, ...
+    MiniBatchSize = miniBatchSize, ...
+    MiniBatchFcn=@preprocessMiniBatch, ...
+    MiniBatchFormat="TCB", ...
+    PartialMiniBatch="discard");
+disp("mini batch")
+disp(size(mbq))
+
+
+
+
+
+
+function X = preprocessMiniBatch(dataX) 
+
+% Concatenate.
+X = cat(1,dataX{:});
+
+end

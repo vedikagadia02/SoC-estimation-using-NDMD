@@ -14,12 +14,12 @@ function [training_input_data, training_target_data] = dataLoader()
     for i = 1:endIdx-31
         training_input_data = [training_input_data; training_data(:, i, :)];
     end
-    
+    disp("hi")
+    disp(size(training_input_data))
     training_target_data = [];
     for i = 2:endIdx-30
         training_target_data = [training_target_data; training_data(:, i:i+29, :)];
     end
-    disp(size(training_input_data))
+    disp("hi2")
     disp(size(training_target_data))
 end
-

@@ -1,4 +1,4 @@
-function main()
+function [data_temp, data] = equation()
     tmax = 50;
     dt = 0.1;
     lamda = -1;
@@ -21,11 +21,14 @@ function main()
         end
     end
     
-    data = zeros(1681, 501, 3);
-    data(:, :, 1) = t_data;
-    data(:, :, 2) = x1_data;
-    data(:, :, 3) = x2_data;
-    disp(size(data));
+    data_temp = zeros(1681, 501, 3);
+    data_temp(:, :, 1) = t_data;
+    data_temp(:, :, 2) = x1_data;
+    data_temp(:, :, 3) = x2_data;
+    data = zeros(1, 501, 3, 1681);
+    for i = 1:1681
+        data(:, :, :, i) = data_temp(i, :, :);
+    end
     save('equation.mat', 'data');
 end
 
