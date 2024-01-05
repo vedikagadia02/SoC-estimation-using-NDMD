@@ -2,15 +2,13 @@
 miniBatchSize = 128;
 [training_input_data, training_target_data] = dataLoader(); 
 % arrays of shape 750400,1,2 and 750400,30,2
-
-% Reduced training size for trial
-% training_input_data = training_input_data(1:256, 1, 1:2);
+training_input_data = training_input_data(1:256, 1, 1:2);
 [mbq_input, mbq_target] = createMiniBatch(training_input_data, training_target_data, miniBatchSize);
 [netE, netK, netD] = define_nn_arch();
 
 encoder_lr = 0.0005;
 kMatrix_lr = 0.001;
-encoderEpochs = 0;
+encoderEpochs = 5;
 koopmanEpochs = 20;
 s = 30;
 a1 = 1;
@@ -39,15 +37,12 @@ iteration = 0;
 
 % Only autoencoder
 while epoch < encoderEpochs && ~monitor.Stop
-    disp("in only autoencoder")
-    disp(epoch)
     epoch = epoch + 1;
     % How to shuffle both the input and target mini batch queues together? 
     % Or create a joint datastore of training_input_data and training_target_data
     % Temporary solution : don't shuffle the mini batch
-    % shuffle(mbq_input);
+    shuffle(mbq_input);
 
-    [mbq_input, mbq_target] = createMiniBatch(training_input_data, training_target_data, miniBatchSize);
     % Loop over mini-batches.
     while hasdata(mbq_input) && ~monitor.Stop
         iteration = iteration + 1;
@@ -76,15 +71,12 @@ iteration = 0;
 % Encoder -> koopman -> decoder
 while epoch < koopmanEpochs && ~monitor.Stop
     epoch = epoch + 1;
-    disp("in koopman")
-    disp(epoch)
     % How to shuffle both the input and target mini batch queues together? 
     % Or create a joint datastore of training_input_data and training_target_data
     % Temporary solution : don't shuffle the mini batch
     % shuffle(mbq_input);
     % shuffle(mbq_target);
 
-    [mbq_input, mbq_target] = createMiniBatch(training_input_data, training_target_data, miniBatchSize);
     % Loop over mini-batches.
     while hasdata(mbq_input) && ~monitor.Stop
         iteration = iteration + 1;
