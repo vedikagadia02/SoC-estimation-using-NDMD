@@ -109,6 +109,10 @@ while epoch < koopmanEpochs && ~monitor.Stop
         updateInfo(monitor,Epoch=epoch + " of " + koopmanEpochs);
         monitor.Progress = 100*iteration/koopmanNumIterations;
     end
+       
+    disp("Koopman operator!")
+    disp(netK.Layers(2).Weights)
+    disp(netK.Layers(2).Bias)
 end
 
 function X = preprocessMiniBatch(dataX)
