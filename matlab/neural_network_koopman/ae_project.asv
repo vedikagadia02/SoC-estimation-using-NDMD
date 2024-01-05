@@ -1,7 +1,7 @@
 numLatentChannels = 32;
 inputSize = [1 2 NaN];
 projectionSize = [1 3 NaN];
-inputFormat = "TCB";
+inputFormat = "CSB";
 indim = 2;
 obsdim = 3;
 
@@ -16,8 +16,14 @@ layersE = [
     fullyConnectedLayer(obsdim)
     ];
 
+layersK = [
+    inputLayer(projectionSize, inputFormat)
+    fullyConnectedLayer(obsdim)
+    ];
+
 layersD = [
     inputLayer(projectionSize,inputFormat)
+    % featureInputLayer(3)
     fullyConnectedLayer(100)
     reluLayer
     fullyConnectedLayer(100)
@@ -28,9 +34,10 @@ layersD = [
     ];
 
 netE = dlnetwork(layersE);
+netK = dlnetwork(layersK);
 netD = dlnetwork(layersD);
 
-numEpochs = 150;
+numEpochs = 5;
 miniBatchSize = 128;
 learnRate = 1e-3;
 
@@ -43,19 +50,201 @@ disp(size(dsTrain))
 mbq = minibatchqueue(dsTrain,numOutputs, ...
     MiniBatchSize = miniBatchSize, ...
     MiniBatchFcn=@preprocessMiniBatch, ...
-    MiniBatchFormat="TCB", ...
+    MiniBatchFormat="BCS", ...
     PartialMiniBatch="discard");
 disp("mini batch")
 disp(size(mbq))
 
+trailingAvgE = [];
+trailingAvgSqE = [];
+trailingAvgD = [];
+trailingAvgSqD = [];
+
+numObservationsTrain = size(training_input_data,1);
+numIterationsPerEpoch = ceil(numObservationsTrain / miniBatchSize);
+numIterations = numEpochs * numIterationsPerEpoch;
+
+monitor = trainingProgressMonitor( ...
+    Metrics="Loss", ...
+    Info="Epoch", ...
+    XLabel="Iteration");
 
 
+epoch = 0;
+iteration = 0;
 
+% Loop over epochs.
+while epoch < 5 && ~monitor.Stop
+    epoch = epoch + 1;
+
+    % Shuffle data.
+    shuffle(mbq);
+
+    % Loop over mini-batches.
+    while hasdata(mbq) && ~monitor.Stop
+        iteration = iteration + 1;
+
+        % Read mini-batch of data.
+        X = next(mbq);
+        disp("in while loop!")
+        disp(size(X));
+        % Evaluate loss and gradients.
+        [loss,gradientsE,gradientsD] = dlfeval(@encoderModel,netE,netD,X);
+
+        % Update learnable parameters.
+        [netE,trailingAvgE,trailingAvgSqE] = adamupdate(netE, ...
+            gradientsE,trailingAvgE,trailingAvgSqE,iteration,learnRate);
+
+        [netD, trailingAvgD, trailingAvgSqD] = adamupdate(netD, ...
+            gradientsD,trailingAvgD,trailingAvgSqD,iteration,learnRate);
+
+        % Update the training progress monitor. 
+        recordMetrics(monitor,iteration,Loss=loss);
+        updateInfo(monitor,Epoch=epoch + " of " + numEpochs);
+        monitor.Progress = 100*iteration/numIterations;
+    end
+end
+
+
+% Loop over epochs.
+while epoch < 20 && ~monitor.Stop
+    epoch = epoch + 1;
+
+    % Shuffle data.
+
+    shuffle(mbq);
+
+    % Loop over mini-batches.
+    while hasdata(mbq) && ~monitor.Stop
+        iteration = iteration + 1;
+
+        % Read mini-batch of data.
+        X = next(mbq);
+        disp("in while loop!")
+        disp(size(X));
+        % Evaluate loss and gradients.
+        [loss,gradientsE,gradientsK,gradientsD] = dlfeval(@koopmanModel,netE,netK,netD,X);
+
+        % Update learnable parameters.
+        [netE,trailingAvgE,trailingAvgSqE] = adamupdate(netE, ...
+            gradientsE,trailingAvgE,trailingAvgSqE,iteration,learnRate);
+
+        [netD, trailingAvgD, trailingAvgSqD] = adamupdate(netD, ...
+            gradientsD,trailingAvgD,trailingAvgSqD,iteration,learnRate);
+
+        % Update the training progress monitor. 
+        recordMetrics(monitor,iteration,Loss=loss);
+        updateInfo(monitor,Epoch=epoch + " of " + numEpochs);
+        monitor.Progress = 100*iteration/numIterations;
+    end
+end
 
 
 function X = preprocessMiniBatch(dataX) 
 
 % Concatenate.
 X = cat(1,dataX{:});
+
+end
+
+function [loss,gradientsE,gradientsD] = encoderModel(netE,netD,X)
+Z = forward(netE,X);
+disp("in encoderModel function!")
+disp("size of X!")
+disp(size(X))
+disp("size of Z!")
+disp(size(Z))
+% Forward through decoder.
+X1 = reshape(Z, 3, 1, 128);
+disp("size of x1!")
+disp(size(X1))
+Xin = dlarray(X1,'SCB');
+disp("size of xin!")
+disp(size(Xin))
+Y = forward(netD,Xin);
+disp("size of Y!")
+disp(size(Y))
+Y1 = reshape(Y, 2, 1, 128);
+Yin = dlarray(Y1,'SCB');
+% Calculate loss and gradients.
+loss = encoderLoss(Yin,X);
+[gradientsE,gradientsD] = dlgradient(loss,netE.Learnables,netD.Learnables);
+
+end
+
+function [loss, gradientsE, gradientsK, gradientsD] = koopmanModel(netE, netK, netD, X)
+
+disp("in koopmanModel function!")
+disp("size of X!")
+disp(size(X))
+
+% Encode data
+Z = forward(netE,X);
+disp("size of Z!")
+disp(size(Z))
+
+% Reshape data
+Z1 = reshape(Z, 3, 1, 128);
+disp("size of Z1!")
+disp(size(Z1))
+Zin = dlarray(Z1,'SCB');
+disp("size of Zin!")
+disp(size(Zin))
+
+Ein = Zin;
+E = zeros(30, 3, 1, 128);
+
+for i = 0:1:30
+K = forward(netK, Ein);
+
+% Reshape data
+K1 = reshape(K, 3, 1, 128);
+Kin = dlarray(K1,'SCB');
+
+Ein = Kin;
+E(i, :, : , :) = K1;
+end
+
+disp("size of E!")
+disp(size(E))
+
+% Reshape data
+K1 = reshape(K, 3, 1, 128);
+disp("size of K1!")
+disp(size(K1))
+Kin = dlarray(K1,'SCB');
+disp("size of Kin!")
+disp(size(Kin))
+
+
+% Decode data
+Y = forward(netD,Kin);
+disp("size of Y!")
+disp(size(Y))
+
+% Reshape data
+Y1 = reshape(Y, 2, 1, 128);
+Yin = dlarray(Y1,'SCB');
+
+% Calculate loss and gradients.
+loss = koopmanLoss(X, Zin, E, Yin);
+[gradientsE, gradientsK, gradientsD] = dlgradient(loss, netE.Learnables, netK.Learnables, netD.Learnables);
+
+end
+
+function loss = koopmanLoss(X, Zin, E, Yin)
+
+% Reconstruction loss.
+reconstructionLoss = mse(Yin,X);
+
+
+
+end
+
+function loss = encoderLoss(Y,T)
+
+% Reconstruction loss.
+reconstructionLoss = mse(Y,T);
+loss = reconstructionLoss;
 
 end

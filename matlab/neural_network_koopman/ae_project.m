@@ -1,140 +1,187 @@
-numLatentChannels = 32;
-inputSize = [1 2 NaN];
-projectionSize = [1 3 NaN];
-inputFormat = "CSB";
-indim = 2;
-obsdim = 3;
 
-layersE = [
-    inputLayer(inputSize,inputFormat)
-    fullyConnectedLayer(100)
-    reluLayer
-    fullyConnectedLayer(100)
-    reluLayer
-    fullyConnectedLayer(100)
-    reluLayer
-    fullyConnectedLayer(obsdim)
-    ];
-
-layersD = [
-    inputLayer(projectionSize,inputFormat)
-    % featureInputLayer(3)
-    fullyConnectedLayer(100)
-    reluLayer
-    fullyConnectedLayer(100)
-    reluLayer
-    fullyConnectedLayer(100)
-    reluLayer
-    fullyConnectedLayer(indim)
-    ];
-
-netE = dlnetwork(layersE);
-netD = dlnetwork(layersD);
-
-numEpochs = 5;
 miniBatchSize = 128;
-learnRate = 1e-3;
+[training_input_data, training_target_data] = dataLoader(); 
+% arrays of shape 750400,1,2 and 750400,30,2
+[mbq_input, mbq_target] = createMiniBatch(training_input_data, training_target_data, miniBatchSize);
+[netE, netK, netD] = define_nn_arch();
 
-[training_input_data, training_target_data] = dataLoader();
-
-dsTrain = arrayDatastore(training_input_data,IterationDimension=1);
-numOutputs = 1;
-disp("DS train")
-disp(size(dsTrain))
-mbq = minibatchqueue(dsTrain,numOutputs, ...
-    MiniBatchSize = miniBatchSize, ...
-    MiniBatchFcn=@preprocessMiniBatch, ...
-    MiniBatchFormat="BCS", ...
-    PartialMiniBatch="discard");
-disp("mini batch")
-disp(size(mbq))
-
-trailingAvgE = [];
-trailingAvgSqE = [];
-trailingAvgD = [];
-trailingAvgSqD = [];
-
+encoder_lr = 0.0005;
+kMatrix_lr = 0.001;
+encoderEpochs = 5;
+koopmanEpochs = 20;
+s = 30;
+a1 = 1;
+a2 = 50;
+a3 = 10;
+a4 = 1e-6;
 numObservationsTrain = size(training_input_data,1);
 numIterationsPerEpoch = ceil(numObservationsTrain / miniBatchSize);
-numIterations = numEpochs * numIterationsPerEpoch;
+encoderNumIterations = encoderEpochs * numIterationsPerEpoch;
+koopmanNumIterations = koopmanEpochs * numIterationsPerEpoch;
+trailingAvgE = [];
+trailingAvgSqE = [];
+trailingAvgK = [];
+trailingAvgSqK = [];
+trailingAvgD = [];
+trailingAvgSqD = [];
 
 monitor = trainingProgressMonitor( ...
     Metrics="Loss", ...
     Info="Epoch", ...
-    XLabel="Iteration");
+    XLabel="Iteration" ...
+);
 
+epoch = 0;
+iteration = 0;
+% 
+% % Only autoencoder
+% while epoch < encoderEpochs && ~monitor.Stop
+%     epoch = epoch + 1;
+%     % How to shuffle both the input and target mini batch queues together? 
+%     % Or create a joint datastore of training_input_data and training_target_data
+%     % Temporary solution : don't shuffle the mini batch
+%     % shuffle(mbq_input);
+% 
+%     % Loop over mini-batches.
+%     while hasdata(mbq_input) && ~monitor.Stop
+%         iteration = iteration + 1;
+% 
+%         % Read mini-batch of data.
+%         X = next(mbq_input);
+%         disp("in while loop!")
+%         disp(size(X));
+%         % Evaluate loss and gradients.
+%         [loss,gradientsE,gradientsD] = dlfeval(@autoencoder,netE,netD,X);
+% 
+%         % Update learnable parameters.
+%         [netE,trailingAvgE,trailingAvgSqE] = adamupdate(netE, ...
+%             gradientsE,trailingAvgE,trailingAvgSqE,iteration,encoder_lr);
+%         [netD, trailingAvgD, trailingAvgSqD] = adamupdate(netD, ...
+%             gradientsD,trailingAvgD,trailingAvgSqD,iteration,encoder_lr);
+% 
+%         % Update the training progress monitor. 
+%         recordMetrics(monitor,iteration,Loss=loss);
+%         updateInfo(monitor,Epoch=epoch + " of " + encoderEpochs);
+%         monitor.Progress = 100*iteration/encoderNumIterations;
+%     end
+% end
 
 epoch = 0;
 iteration = 0;
 
-% Loop over epochs.
-while epoch < numEpochs && ~monitor.Stop
+% Encoder -> koopman -> decoder
+while epoch < koopmanEpochs && ~monitor.Stop
     epoch = epoch + 1;
-
-    % Shuffle data.
-    shuffle(mbq);
+    % How to shuffle both the input and target mini batch queues together? 
+    % Or create a joint datastore of training_input_data and training_target_data
+    % Temporary solution : don't shuffle the mini batch
+    % shuffle(mbq_input);
+    % shuffle(mbq_target);
 
     % Loop over mini-batches.
-    while hasdata(mbq) && ~monitor.Stop
+    while hasdata(mbq_input) && ~monitor.Stop
         iteration = iteration + 1;
 
         % Read mini-batch of data.
-        X = next(mbq);
-        disp("in while loop!")
-        disp(size(X));
+        X = next(mbq_input);                    % dlarray of shape 2,1,128                          
+        target = next(mbq_target);              % dlarray of shape 2,30,128
+
         % Evaluate loss and gradients.
-        [loss,gradientsE,gradientsD] = dlfeval(@modelLoss,netE,netD,X);
+        [loss,gradientsE,gradientsK,gradientsD] = dlfeval(@koopmanModel,netE,netK,netD,X, target, miniBatchSize, s, a1, a2, a3, a4);
 
         % Update learnable parameters.
         [netE,trailingAvgE,trailingAvgSqE] = adamupdate(netE, ...
-            gradientsE,trailingAvgE,trailingAvgSqE,iteration,learnRate);
-
+            gradientsE,trailingAvgE,trailingAvgSqE,iteration,encoder_lr);
+        [netK, trailingAvgK, trailingAvgSqK] = adamupdate(netK, ...
+            gradientsK,trailingAvgK,trailingAvgSqK,iteration,kMatrix_lr);
         [netD, trailingAvgD, trailingAvgSqD] = adamupdate(netD, ...
-            gradientsD,trailingAvgD,trailingAvgSqD,iteration,learnRate);
+            gradientsD,trailingAvgD,trailingAvgSqD,iteration,encoder_lr);
 
         % Update the training progress monitor. 
         recordMetrics(monitor,iteration,Loss=loss);
-        updateInfo(monitor,Epoch=epoch + " of " + numEpochs);
-        monitor.Progress = 100*iteration/numIterations;
+        updateInfo(monitor,Epoch=epoch + " of " + koopmanEpochs);
+        monitor.Progress = 100*iteration/koopmanNumIterations;
     end
 end
 
-function X = preprocessMiniBatch(dataX) 
-
-% Concatenate.
-X = cat(1,dataX{:});
-
+function X = preprocessMiniBatch(dataX)
+    X = cat(1,dataX{:});
+end
+ 
+function [mbq_input, mbq_target] = createMiniBatch(training_input_data, training_target_data, miniBatchSize)
+    dsInput = arrayDatastore(training_input_data,IterationDimension=1);
+    numOutputs = 1;
+    mbq_input = minibatchqueue(dsInput,numOutputs, ...
+        MiniBatchSize = miniBatchSize, ...
+        MiniBatchFcn=@preprocessMiniBatch, ...
+        MiniBatchFormat="BCS", ...
+        PartialMiniBatch="discard");
+    
+    dsTarget = arrayDatastore(training_target_data,IterationDimension=1);
+    numOutputs = 1;
+    mbq_target = minibatchqueue(dsTarget,numOutputs, ...
+        MiniBatchSize = miniBatchSize, ...
+        MiniBatchFcn=@preprocessMiniBatch, ...
+        MiniBatchFormat="BCS", ...
+        PartialMiniBatch="discard");
 end
 
-function [loss,gradientsE,gradientsD] = modelLoss(netE,netD,X)
-Z = forward(netE,X);
-disp("in modelLoss function!")
-disp("size of X!")
-disp(size(X))
-disp("size of Z!")
-disp(size(Z))
-% Forward through decoder.
-X1 = reshape(Z, 3, 1, 128);
-disp("size of x1!")
-disp(size(X1))
-Xin = dlarray(X1,'SCB');
-disp("size of xin!")
-disp(size(Xin))
-Y = forward(netD,Xin);
-disp("size of Y!")
-disp(size(Y))
-Y1 = reshape(Y, 2, 1, 128);
-Yin = dlarray(Y1,'SCB');
-% Calculate loss and gradients.
-loss = elboLoss(Yin,X);
-[gradientsE,gradientsD] = dlgradient(loss,netE.Learnables,netD.Learnables);
 
+function [Y] = encoder(netE, X, miniBatchSize)
+    Yout = forward(netE, X);                    % list of shape 3,128
+    Ytemp = reshape(Yout, 3, 1, miniBatchSize); % list of shape 3,1,128
+    Y = dlarray(Ytemp, 'SCB');                  
 end
 
-function loss = elboLoss(Y,T)
+function [K] = koopman(netK, Y, miniBatchSize)
+    Kout = forward(netK, Y);
+    Ktemp = reshape(Kout, 3, 1, miniBatchSize);
+    K = dlarray(Ktemp, 'SCB');
+end
 
-% Reconstruction loss.
-reconstructionLoss = mse(Y,T);
-loss = reconstructionLoss;
+function [Z] = decoder(netD, Y, miniBatchSize)
+    Zout = forward(netD, Y);
+    Ztemp = reshape(Zout, 2, 1, miniBatchSize);
+    Z = dlarray(Ztemp, 'SCB');
+end
+
+
+function [loss,gradientsE,gradientsD] = autoencoder(netE,netD,X, miniBatchSize)
+    Y = encoder(netE, X, miniBatchSize);        % dlarray of shape 3,1,128
+    Z = decoder(netD, Y, miniBatchSize);        % dlarray of shape 2,1,128
+    loss = encoderLoss(Z,X);
+    [gradientsE,gradientsD] = dlgradient(loss,netE.Learnables,netD.Learnables);
+end
+
+function loss = encoderLoss(Z,X)
+    reconstructionLoss = mse(Z,X);
+    loss = reconstructionLoss;
+end
+
+function [loss, gradientsE, gradientsK, gradientsD] = koopmanModel(netE, netK, netD, X, target, miniBatchSize, s, a1, a2, a3, a4)
+    Y = encoder(netE, X, miniBatchSize);        % dlarray of shape 3,1,128
+    Z = decoder(netD, Y, miniBatchSize);        % dlarray of shape 2,1,128
+    loss_lin = 0;
+    loss_pred = 0;
+    loss_rec = encoderLoss(Z,X);
+
+    for i = 1:1:s
+        inputTnext = target(:,i,:);
+        encoderOutputTnext = encoder(netE, inputTnext, miniBatchSize);
+        outputTnext = decoder(netD, encoderOutputTnext, miniBatchSize);
+        koopmanTnext = koopman(netK, Y, miniBatchSize);
+        recoverTnext = decoder(netD, koopmanTnext, miniBatchSize);
+
+        loss_rec = loss_rec + encoderLoss(inputTnext, outputTnext);
+        loss_lin = loss_lin + mse(koopmanTnext, encoderOutputTnext);
+        loss_pred = loss_pred + mse(inputTnext, recoverTnext);
+    end
+
+    loss_rec = loss_rec/s;
+    loss_lin = loss_lin/s;
+    loss_pred = loss_pred/s;
+    
+    loss = a1*loss_rec + a2*loss_lin + a3*loss_pred;
+    [gradientsE, gradientsK, gradientsD] = dlgradient(loss, netE.Learnables, netK.Learnables, netD.Learnables);
 
 end

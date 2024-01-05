@@ -26,7 +26,6 @@ function data = equation_to_data()
     data(:, :, 1) = t_data;
     data(:, :, 2) = x1_data;
     data(:, :, 3) = x2_data;
-    disp(size(data));
 end
 
 function [t, X] = solve_equation(tmax, dt, x1_0, x2_0, lamda, mu)
