@@ -68,3 +68,27 @@ def trainModel(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimiz
         optimizer.zero_grad()
         loss = 0
     return loss_rec, loss_total, model.getKoopmanMatrix()
+
+def testModel(device, model, testing_loader):
+    model.eval()
+    test_loss = 0
+    mseLoss = nn.MSELoss()
+    actual_values = np.zeros((20000,2))
+    predicted_values = np.zeros((20000,2))
+
+    for mbidx, (input_data, target_data) in enumerate(testing_loader):
+        # yTarget0 [16,2]
+        batch_size = input_data.size(0)
+        input_t = input_data.view(batch_size, -1).to(device) # Testing starting input
+        encoder_output_t, output_t = model(input_t)
+        data_tnext = target_data.to(device)
+
+        koopman_tnext = model.koopmanOperation(encoder_output_t,1)
+        output_tnext = model.recover(koopman_tnext)
+
+        test_loss = test_loss + mseLoss(data_tnext, output_tnext)
+
+        actual_values[mbidx:mbidx+data_tnext.size(0)]=data_tnext
+        predicted_values[mbidx:mbidx+output_tnext.size(0)]=output_tnext
+
+    return test_loss, actual_values, predicted_values

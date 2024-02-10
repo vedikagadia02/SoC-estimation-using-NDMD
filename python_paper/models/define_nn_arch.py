@@ -9,23 +9,19 @@ class KoopmanNetwork(nn.Module):
     def __init__(self, indim, obsdim):
         super(KoopmanNetwork, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Linear(indim, 100),
+            nn.Linear(indim, 30),
             nn.ReLU(inplace=True),
-            nn.Linear(100,100),
+            nn.Linear(30,30),
             nn.ReLU(inplace=True),
-            nn.Linear(100,100),
-            nn.ReLU(inplace=True),
-            nn.Linear(100,obsdim)
+            nn.Linear(30,obsdim)
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(obsdim, 100),
+            nn.Linear(obsdim, 30),
             nn.ReLU(inplace=True),
-            nn.Linear(100,100),
+            nn.Linear(30,30),
             nn.ReLU(inplace=True),
-            nn.Linear(100,100),
-            nn.ReLU(inplace=True),
-            nn.Linear(100,indim)
+            nn.Linear(30,indim)
         )   
 
         # self.kMatrix = nn.Parameter(torch.rand(obsdim, obsdim))
