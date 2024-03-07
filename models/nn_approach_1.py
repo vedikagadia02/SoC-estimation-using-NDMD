@@ -1,7 +1,8 @@
 import torch
+import random
 import numpy as np
 import torch.nn as nn
-from ..plots.plots import plot_eqn, plot_soh
+from ..plot_functions.plots import plot_eqn, plot_soc
 
 def trainAE(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer):
   mseLoss = nn.MSELoss()
@@ -27,6 +28,7 @@ def trainAE(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer)
 def trainModel(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer):
     mseLoss = nn.MSELoss()
     loss_total = 0
+    
     for idx, (input_data, target_data) in enumerate(training_loader):
         batch_size = input_data.size(0)
         input_t = input_data.view(batch_size,-1).to(device) # size [16,2]
@@ -68,13 +70,18 @@ def trainModel(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimiz
         optimizer.step()
         optimizer.zero_grad()
         loss = 0
+
     return loss_rec, loss_total, model.getKoopmanMatrix()
 
-def testModel(exp, epoch, device, model, testing_loader, plot_dir):
+def testModel(exp, test_key, epoch, device, model, testing_loader, plot_dir):
     model.eval()
     test_loss = 0
     mseLoss = nn.MSELoss()
 
+    actual_soc_list = []
+    predicted_soc_list = []
+    random_idx = random.randint(0, len(testing_loader)-1)
+    
     for idx, (input_data, target_data) in enumerate(testing_loader):
         batch_size = target_data.size(0)
         sequence_size = target_data.size(1)
@@ -95,10 +102,17 @@ def testModel(exp, epoch, device, model, testing_loader, plot_dir):
             predicted_values[:,s,:] = recover_tnext
             test_loss = test_loss + mseLoss(input_tnext, recover_tnext)
 
-        if idx==0:
-            if exp=='eqn':
-                plot_eqn(device, epoch, idx, actual_values, predicted_values, plot_dir)
-            else:
-                plot_soh(device, epoch, idx, actual_values, predicted_values, plot_dir)
+        actual_soc_list.append(input_data[:,-1].cpu().numpy())
+        predicted_soc_list.append(predicted_values[:,:,-1].cpu().numpy())
+        
 
-    return test_loss, actual_values, predicted_values
+        if idx==random_idx:
+            if exp=='eqn':
+                plot_eqn(device, test_key, epoch, idx, actual_values, predicted_values, plot_dir)
+            else:
+                plot_soc(device, test_key, epoch, idx, actual_values, predicted_values, plot_dir)
+
+    actual_soc_values = np.concatenate(actual_soc_list)
+    predicted_soc_values = np.concatenate(predicted_soc_list, axis = 0)
+
+    return test_loss, actual_soc_values, predicted_soc_values

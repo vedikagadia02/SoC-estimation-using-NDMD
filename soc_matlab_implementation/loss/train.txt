@@ -1,0 +1,15 @@
+Epoch 1: Training Loss 32.48023
+Epoch 2: Training Loss 1.27018
+Epoch 3: Training Loss 0.95094
+Epoch 4: Training Loss 0.45395
+Epoch 5: Training Loss 0.32317
+Epoch 6: Training Loss 127.93833
+Epoch 7: Training Loss 51.06869
+Epoch 8: Training Loss 47.49709
+Epoch 9: Training Loss 46.08744
+Epoch 10: Training Loss 45.43171
+Epoch 11: Training Loss 44.92379
+Epoch 12: Training Loss 44.80166
+Epoch 13: Training Loss 44.47521
+Epoch 14: Training Loss 47.83942
+Epoch 15: Training Loss 44.47484

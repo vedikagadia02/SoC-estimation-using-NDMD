@@ -1,0 +1,12 @@
+Epoch 5 for test_0C : Testing Loss 2.758768081665039
+Epoch 5 for test_10C : Testing Loss 1.7255771160125732
+Epoch 5 for test_25C : Testing Loss 1.7745674848556519
+Epoch 5 for test_neg10C : Testing Loss 4.504641056060791
+Epoch 10 for test_0C : Testing Loss 0.0017290263203904033
+Epoch 10 for test_10C : Testing Loss 0.004131196532398462
+Epoch 10 for test_25C : Testing Loss 0.002272257814183831
+Epoch 10 for test_neg10C : Testing Loss 0.0037936558946967125
+Epoch 15 for test_0C : Testing Loss 0.0036404861602932215
+Epoch 15 for test_10C : Testing Loss 0.00312292599119246
+Epoch 15 for test_25C : Testing Loss 0.0011599757708609104
+Epoch 15 for test_neg10C : Testing Loss 0.003532056463882327

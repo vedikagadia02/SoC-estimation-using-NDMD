@@ -70,7 +70,8 @@ def loadData(file_name, ntrain, ntest, train_batch_size, test_batch_size):
     
     training_input_data = np.concatenate([training_data[:, i, :] for i in range(0,endIdx-31,1)], axis=0)
     training_target_data = np.concatenate([training_data[:, i:i+30, :] for i in range(1, endIdx-30, 1)], axis=0)
-
+    print(training_input_data.shape)
+    print(training_target_data.shape)
     # training_input_data = np.concatenate([training_data_norm[i, :endIdx, :] for i in range(0,ntrain,1)], axis=0)
     # training_target_data = np.concatenate([training_data_norm[i, :endIdx+1, :] for i in range(0, ntrain, 1)], axis=0)
     
@@ -131,7 +132,8 @@ if __name__ == '__main__':
     weight_decay = 1e-7
     gamma = 0.995
     epochs = 50
-    epochs_encoder = 4
+    epochs_encoder = 0
+    test_key = ''
     '''
     END OF CHANGE VALUES
     '''
@@ -142,7 +144,17 @@ if __name__ == '__main__':
     training_loader, testing_loader, data_for_plot = loadData(dataset, ntrain, ntest, train_batch_size, test_batch_size)
     print_training_loader_shape(training_loader)
 
+    ### TO RUN MODEL FROM SAVED EPOCH
+    model_files = os.listdir(model_save_dir)
+
+    # Filter out non-checkpoint files if any
+    model_files = [f for f in model_files if f.startswith("model_epoch_") and f.endswith(".pt")]    
+    latest_model_file = max(model_files, key=lambda f: int(f.split('_')[-1].split('.')[0]))
+    latest_model_path = os.path.join(model_save_dir, latest_model_file)
+
     model = KoopmanNetwork(indim, obsdim).to(device)
+    model.load_state_dict(torch.load(latest_model_path))
+
     optimizer = torch.optim.Adam([
         {'params': list(model.encoder.parameters()) + list(model.decoder.parameters()), 'lr': encoder_lr},
         {'params': [model.kMatrixDiag, model.kMatrixUT], 'lr': kMatrix_lr}
@@ -172,14 +184,21 @@ if __name__ == '__main__':
                     f.write(' '.join(formatted_row) + "\n")
         
         # Saving the model at every 5th epoch
-        if epoch % 5 == 0:
+        if epoch %  1 == 0:
             model_save_path = os.path.join(model_save_dir, f"model_epoch_{epoch}.pt")
             torch.save(model.state_dict(), model_save_path)
             
             # Testing and plotting the model at every 5th epoch
             with torch.no_grad():
-                test_loss, actual_values, predicted_values = testModel(exp, epoch, device, model, testing_loader, plot_dir)
+                test_loss, actual_values, predicted_values = testModel(exp, test_key, epoch, device, model, testing_loader, plot_dir)
                 test_losses.append(test_loss)
+                mse_loss = torch.nn.MSELoss()
+                x1_mse = mse_loss(actual_values[:,0], predicted_values[:,0])
+                x2_mse = mse_loss(actual_values[:,1], predicted_values[:,1])
+                x1_rms = torch.sqrt(x1_mse)
+                x2_rms = torch.sqrt(x2_mse)
+                print(f"final rmse error of x1 {x1_rms}")
+                print(f"final rmse error of x2 {x2_rms}")
                 # save_actual_vs_predicted_plots(data_for_plot, actual_values,predicted_values,epoch, plot_dir)
                 print('Epoch {:d}: Testing Loss {:.02f}'.format(epoch, test_loss))
         
