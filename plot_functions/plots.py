@@ -36,8 +36,8 @@ def plot_soc(device, test_key, epoch, idx, actual_values, predicted_values, plot
     if not os.path.exists(plot_dir + test_key[4:]):
         os.makedirs(plot_dir + test_key[4:])
     
-    soc_actual = actual_values[:,:,5].to(device)
-    soc_predicted = predicted_values[:,:,5].to(device)
+    soc_actual = actual_values[:,:,-1].to(device)
+    soc_predicted = predicted_values[:,:,-1].to(device)
 
     plt.plot(soc_actual.cpu().numpy(), color='red')
     plt.plot(soc_predicted.cpu().numpy(), color='blue')
@@ -52,4 +52,27 @@ def plot_soc(device, test_key, epoch, idx, actual_values, predicted_values, plot
 
     plt.tight_layout()
     plt.savefig(os.path.join(plot_dir + test_key[4:], f'plot_epoch_{epoch}_index_{idx}.png'))
+    plt.close()
+
+def plot_stock(device, test_key, epoch, idx, actual_values, predicted_values, plot_dir):
+    plot_key_path = plot_dir + '/' + test_key[5:]
+    if not os.path.exists(plot_key_path):
+        os.makedirs(plot_key_path)
+    
+    stock_actual = actual_values[:,:,-1].to(device)
+    stock_predicted = predicted_values[:,:,-1].to(device)
+
+    plt.plot(stock_actual.cpu().numpy(), color='red')
+    plt.plot(stock_predicted.cpu().numpy(), color='blue')
+    plt.title('TATAMOTORS actual vs predicted')
+    plt.xlabel('t_data')
+    plt.ylabel('TATAMOTORS_data')
+
+    # Create custom legend
+    red_line = mlines.Line2D([], [], color='red', label='Target')
+    blue_line = mlines.Line2D([], [], color='blue', label='Predicted')
+    plt.legend(handles=[red_line, blue_line])
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(plot_key_path, f'epoch_{epoch}_index_{idx}.png'))
     plt.close()

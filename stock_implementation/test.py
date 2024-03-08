@@ -17,6 +17,16 @@ from ..plot_functions.overall_plots import plot_soc, plot_loss
 ### FILES IN FOLLOWING FILE STRUCTURE .\Desktop\SOC-estimation-using-NDMD\stock_implementation
 ### RUN WITH THIS COMMAND FROM DESKTOP (PARENT DIRECTORY OF SOC_IMPLEMENTATION_NDMD) python -m SoC-estimation-using-NDMD.stock_implementation.test
 
+def data_scaler(data):
+    num_samples, num_features = data.shape[0], data.shape[1]
+    flattened_data = data.reshape(num_samples, num_features)
+    scaler = MinMaxScaler(feature_range=(0,1))
+    # scaler = StandardScaler()
+    scaler.fit(flattened_data)
+    data_norm = scaler.transform(flattened_data)
+    scaled_data = data_norm.reshape(num_samples, num_features)
+    return scaled_data, scaler
+
 def loadData(train_file_name, test_files, test_dir_name, train_batch_size, test_batch_size):
 
     training_dataframe = pd.read_csv(train_file_name)
@@ -27,19 +37,22 @@ def loadData(train_file_name, test_files, test_dir_name, train_batch_size, test_
     training_loader = DataLoader(training_dataset, batch_size=train_batch_size, shuffle=True)
     
     testing_data = {}
+    testing_scaler = {}
     testing_input_data = {}
     testing_target_data = {}
     testing_dataset = {}
     testing_loader = {}
     for file in test_files:
         dataframe = pd.read_csv(test_dir_name + file)
-        data = dataframe.values
+        init_data = dataframe.values
+        data, scaler = data_scaler(init_data)
         key = file.replace('.csv','')
-        input_data = data[:-30]
-        target_data = np.array([data[i:i+30] for i in range(data.shape[0]-30)])
+        input_data = data[:-1*s]
+        target_data = np.array([data[i:i+s] for i in range(data.shape[0]-s)])
         dataset = TensorDataset(torch.Tensor(input_data), torch.Tensor(target_data))
         tensor_loader = DataLoader(dataset, batch_size = test_batch_size, shuffle = False)
         testing_data[key] = data
+        testing_scaler[key] = scaler
         testing_input_data[key] = input_data
         testing_target_data[key] = target_data
         testing_dataset[key] = dataset
@@ -64,20 +77,20 @@ if __name__ == '__main__':
     '''
     CHANGE VALUES HERE
     '''
-    exp = 'soc'
+    exp = 'stock'
     project_dir = './SOC-estimation-using-NDMD/stock_implementation/'
     test_dir_name = project_dir + "dataset/"
-    train_file_name = project_dir + "dataset/train_dataset.csv"
+    train_file_name = project_dir + "dataset/train_ONGC.csv"
     model_dir = project_dir + "checkpoints"
     koopman_dir = project_dir + "KoopmanPerEpoch"
     loss_dir = project_dir + "loss"
     plot_dir = project_dir + "plots/test"
-    test_files = ['test_dataset.csv']
+    test_files = ['test_CAMS.csv']
 
     train_batch_size = 128
     test_batch_size = 16
-    indim = 6
-    obsdim = 30
+    indim = 12
+    obsdim = 50
     s = 30 
     a1, a2, a3, a4 = 1.0, 50.0, 10.0, 1e-6
     encoder_lr = 0.001
@@ -92,7 +105,7 @@ if __name__ == '__main__':
 
     training_loader, testing_loader = loadData(train_file_name, test_files, test_dir_name, train_batch_size, test_batch_size)    
     model = KoopmanNetwork(indim, obsdim).to(device)
-    model.load_state_dict(torch.load(model_dir+'/model_epoch_10.pt')) 
+    model.load_state_dict(torch.load(model_dir+'/model_epoch_45.pt')) 
 
     epoch = -1
     ### here test_idx is used to differentiate between temperature-wise SOC test datasets

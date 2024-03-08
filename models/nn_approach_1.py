@@ -2,7 +2,24 @@ import torch
 import random
 import numpy as np
 import torch.nn as nn
-from ..plot_functions.plots import plot_eqn, plot_soc
+from ..plot_functions.plots import plot_eqn, plot_soc, plot_stock
+
+def inverse_scaler(test_scaler, actual_list, predicted_list):
+    # print('HIIIIIIIIIIIIIIIIIIIIIIIII')
+    # print(predicted_list.shape)
+    stock_predicted = np.zeros((predicted_list.shape[0], predicted_list.shape[2]))
+    for i in range(predicted_list.shape[0]):
+        stock_predicted[i] = predicted_list[i,-1,:]
+    
+    num_samples, num_features = actual_list.shape[0], actual_list.shape[1]
+    actual_flattened = actual_list.reshape(num_samples, num_features)
+    predicted_flattened = stock_predicted.reshape(num_samples, num_features)
+    actual_iw_scale = test_scaler.inverse_transform(actual_flattened)
+    predicted_iw_scale = test_scaler.inverse_transform(predicted_flattened)
+    actual_og_scale = actual_iw_scale.reshape(num_samples, num_features)
+    predicted_og_scale = predicted_iw_scale.reshape(num_samples, num_features)
+    
+    return actual_og_scale[:,-1], predicted_og_scale[:,-1]
 
 def trainAE(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimizer):
   mseLoss = nn.MSELoss()
@@ -73,14 +90,17 @@ def trainModel(epoch, device, training_loader, s, model, a1, a2, a3, a4, optimiz
 
     return loss_rec, loss_total, model.getKoopmanMatrix()
 
-def testModel(exp, test_key, epoch, device, model, testing_loader, plot_dir):
+def testModel(exp, test_key, epoch, device, model, testing_loader, plot_dir, test_scaler):
     model.eval()
     test_loss = 0
     mseLoss = nn.MSELoss()
 
-    actual_soc_list = []
-    predicted_soc_list = []
-    random_idx = random.randint(0, len(testing_loader)-1)
+    actual_list = []
+    predicted_list = []
+    mm_scale_actual_list = []
+    mm_scale_pred_list = []
+
+    # random_idx = random.randint(0, len(testing_loader)-1)
     
     for idx, (input_data, target_data) in enumerate(testing_loader):
         batch_size = target_data.size(0)
@@ -102,17 +122,24 @@ def testModel(exp, test_key, epoch, device, model, testing_loader, plot_dir):
             predicted_values[:,s,:] = recover_tnext
             test_loss = test_loss + mseLoss(input_tnext, recover_tnext)
 
-        actual_soc_list.append(input_data[:,-1].cpu().numpy())
-        predicted_soc_list.append(predicted_values[:,:,-1].cpu().numpy())
+        actual_list.append(input_data[:,:].cpu().numpy())
+        predicted_list.append(predicted_values[:,:,:].cpu().numpy())
         
+        mm_scale_actual_list.append(input_data[:,-1].cpu().numpy())
+        mm_scale_pred_list.append(predicted_values[:,:,-1].cpu().numpy())
+        
+        # if idx==random_idx:
+        #     if exp=='eqn':
+        #         plot_eqn(device, test_key, epoch, idx, actual_values, predicted_values, plot_dir)
+        #     elif exp=='soc':
+        #         plot_soc(device, test_key, epoch, idx, actual_values, predicted_values, plot_dir)
+        #     else:
+        #         plot_stock(device, test_key, epoch, idx, actual_values, predicted_values, plot_dir)
 
-        if idx==random_idx:
-            if exp=='eqn':
-                plot_eqn(device, test_key, epoch, idx, actual_values, predicted_values, plot_dir)
-            else:
-                plot_soc(device, test_key, epoch, idx, actual_values, predicted_values, plot_dir)
+    mm_scale_actual = np.concatenate(mm_scale_actual_list)
+    mm_scale_predicted = np.concatenate(mm_scale_pred_list)
+    actual_values = np.concatenate(actual_list)
+    predicted_values = np.concatenate(predicted_list, axis = 0)
 
-    actual_soc_values = np.concatenate(actual_soc_list)
-    predicted_soc_values = np.concatenate(predicted_soc_list, axis = 0)
-
-    return test_loss, actual_soc_values, predicted_soc_values
+    iw_scale_actual, iw_scale_predicted = inverse_scaler(test_scaler, actual_values, predicted_values)
+    return test_loss, mm_scale_actual, mm_scale_predicted, iw_scale_actual, iw_scale_predicted
